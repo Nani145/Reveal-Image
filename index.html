@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LEGEND REVEAL v3.5 | PRO</title>
+    <title>LEGEND REVEAL v4.0 | ELITE</title>
     <style>
         :root { --cyan: #00f2ff; --pink: #ff0055; --bg: #020202; }
         body { background: var(--bg); color: #fff; font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
@@ -13,21 +13,17 @@
             position: relative;
         }
 
-        /* EYE-CATCHY FULLSCREEN BUTTON */
         #fs-btn {
             position: absolute; top: 15px; right: 20px;
             background: transparent; color: var(--cyan); border: 2px solid var(--cyan);
             padding: 8px 15px; border-radius: 8px; font-size: 10px; font-weight: 900;
             cursor: pointer; text-transform: uppercase; letter-spacing: 2px;
-            box-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
             transition: 0.3s; animation: pulse 2s infinite;
         }
-        #fs-btn:hover { background: var(--cyan); color: #000; box-shadow: 0 0 30px var(--cyan); }
 
         @keyframes pulse {
-            0% { transform: scale(1); box-shadow: 0 0 10px var(--cyan); }
-            50% { transform: scale(1.05); box-shadow: 0 0 25px var(--cyan); }
-            100% { transform: scale(1); box-shadow: 0 0 10px var(--cyan); }
+            0%, 100% { transform: scale(1); box-shadow: 0 0 10px var(--cyan); }
+            50% { transform: scale(1.05); box-shadow: 0 0 20px var(--cyan); }
         }
 
         .btn { 
@@ -44,9 +40,11 @@
 
         #container { position: relative; flex-grow: 1; width: 100vw; overflow: hidden; display: flex; justify-content: center; align-items: center; }
         #legend { position: absolute; max-width: 100%; max-height: 100%; object-fit: contain; z-index: 1; }
-        #revealCanvas { position: absolute; z-index: 2; }
+        
+        /* Two Canvas Layers: One for Mask, One for Glow FX */
+        #revealCanvas, #fxCanvas { position: absolute; z-index: 2; pointer-events: none; }
+        #fxCanvas { z-index: 3; filter: blur(4px); }
 
-        /* SCANLINE OVERLAY */
         #container::after {
             content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.1) 50%), linear-gradient(90deg, rgba(255,0,0,0.03), rgba(0,255,0,0.01), rgba(0,255,0,0.03));
@@ -58,10 +56,8 @@
 
     <div id="ui">
         <button id="fs-btn" onclick="toggleFS()">Fullscreen</button>
-        
         <label class="btn" for="file-input">Load Identity</label>
         <input type="file" id="file-input" accept="image/*" style="display:none">
-        
         <input type="number" id="reveal-num" placeholder="FOLLOWER COUNT">
         <button class="btn" onclick="executeReveal()">Execute</button>
         <button class="btn" onclick="resetSystem()" style="border-color:var(--pink); color:var(--pink);">Reset System</button>
@@ -70,15 +66,18 @@
     <div id="container">
         <img id="legend" src="">
         <canvas id="revealCanvas"></canvas>
+        <canvas id="fxCanvas"></canvas>
     </div>
 
     <script>
         const canvas = document.getElementById('revealCanvas');
         const ctx = canvas.getContext('2d');
+        const fxCanvas = document.getElementById('fxCanvas');
+        const fxCtx = fxCanvas.getContext('2d');
         const img = document.getElementById('legend');
-        const fileInput = document.getElementById('file-input');
         
         let blocks = [];
+        let totalRevealed = 0; // TRACKS PROGRESS
         const cols = 160;
         const rows = 156;
         let blockW, blockH;
@@ -86,10 +85,13 @@
 
         function setupCanvas() {
             const rect = img.getBoundingClientRect();
-            canvas.width = rect.width;
-            canvas.height = rect.height;
+            [canvas, fxCanvas].forEach(c => {
+                c.width = rect.width;
+                c.height = rect.height;
+            });
             blockW = canvas.width / cols;
             blockH = canvas.height / rows;
+            totalRevealed = 0;
             drawMask();
             generateBlockList();
         }
@@ -98,6 +100,7 @@
             ctx.globalCompositeOperation = 'source-over';
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+            fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
         }
 
         function generateBlockList() {
@@ -107,13 +110,14 @@
                     blocks.push({ x: c * blockW, y: r * blockH });
                 }
             }
+            // Constant Seeded Shuffle would be better, but standard shuffle for now
             for (let i = blocks.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [blocks[i], blocks[j]] = [blocks[j], blocks[i]];
             }
         }
 
-        fileInput.addEventListener('change', function(e) {
+        document.getElementById('file-input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
@@ -127,16 +131,17 @@
 
         function executeReveal() {
             if (isAnimating) return;
-            const numToReveal = parseInt(document.getElementById('reveal-num').value);
-            if (isNaN(numToReveal) || blocks.length === 0) return;
+            const targetTotal = parseInt(document.getElementById('reveal-num').value);
+            if (isNaN(targetTotal)) return;
+
+            // ONLY REVEAL THE DIFFERENCE
+            const numToRevealNow = targetTotal - totalRevealed;
+            if (numToRevealNow <= 0) return; 
 
             isAnimating = true;
-            const toErase = blocks.splice(0, numToReveal);
-            
-            // Adjust speed: batchSize is how many blocks reveal per frame
-            // 50-100 is fast but visible. 200+ is very fast.
+            const toErase = blocks.slice(totalRevealed, targetTotal);
             let index = 0;
-            const batchSize = Math.ceil(numToReveal / 60); 
+            const batchSize = Math.ceil(numToRevealNow / 40); 
 
             function animate() {
                 ctx.globalCompositeOperation = 'destination-out';
@@ -144,14 +149,29 @@
                 
                 for (let i = index; i < end; i++) {
                     const b = toErase[i];
+                    // 1. Erase from main mask
                     ctx.fillRect(b.x, b.y, blockW + 0.6, blockH + 0.6);
+                    
+                    // 2. Draw Glow on FX Layer
+                    fxCtx.fillStyle = Math.random() > 0.5 ? '#00f2ff' : '#ff0055';
+                    fxCtx.fillRect(b.x, b.y, blockW * 1.5, blockH * 1.5);
                 }
 
                 index = end;
+                
+                // Slowly fade out the glow FX
+                fxCtx.fillStyle = 'rgba(0,0,0,0.15)';
+                fxCtx.globalCompositeOperation = 'destination-out';
+                fxCtx.fillRect(0, 0, fxCanvas.width, fxCanvas.height);
+                fxCtx.globalCompositeOperation = 'source-over';
+
                 if (index < toErase.length) {
                     requestAnimationFrame(animate);
                 } else {
+                    totalRevealed = targetTotal; // Update current count
                     isAnimating = false;
+                    // Final clear of FX layer after a short delay
+                    setTimeout(() => fxCtx.clearRect(0,0,fxCanvas.width, fxCanvas.height), 300);
                 }
             }
             animate();
@@ -159,15 +179,13 @@
 
         function resetSystem() {
             isAnimating = false;
+            document.getElementById('reveal-num').value = "";
             setupCanvas();
         }
 
         function toggleFS() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
-            } else {
-                document.exitFullscreen();
-            }
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else document.exitFullscreen();
         }
 
         window.addEventListener('resize', setupCanvas);
