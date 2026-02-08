@@ -2,35 +2,82 @@
 <html lang="en">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LEGEND REVEAL SYSTEM</title>
+    <title>LEGEND SYSTEM v2.0</title>
     <style>
-        :root { --neon: #0f0; --bg: #000; }
-        body { background: var(--bg); color: var(--neon); font-family: 'Courier New', monospace; margin: 0; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
+        :root { 
+            --cyan: #00f2ff; 
+            --purple: #bc13fe;
+            --bg: #050505; 
+        }
+        body { background: var(--bg); color: #fff; font-family: 'Segoe UI', sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
         
-        /* UI HEADER */
-        #ui { background: rgba(0, 0, 0, 0.9); padding: 15px; border-bottom: 2px solid var(--neon); z-index: 100; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; }
-        input[type="number"] { background: #111; border: 1px solid var(--neon); color: var(--neon); padding: 8px; width: 100px; font-size: 16px; outline: none; }
-        .btn { background: var(--neon); color: #000; border: none; padding: 10px 15px; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 12px; }
-        .btn:active { background: #fff; }
+        /* SLEEK NEON UI */
+        #ui { 
+            background: rgba(10, 10, 10, 0.85); 
+            padding: 20px; 
+            border-bottom: 1px solid rgba(0, 242, 255, 0.3); 
+            z-index: 100; 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 15px; 
+            justify-content: center; 
+            backdrop-filter: blur(10px);
+        }
+
+        .btn { 
+            background: transparent; 
+            color: var(--cyan); 
+            border: 1px solid var(--cyan); 
+            padding: 10px 20px; 
+            border-radius: 30px; /* Rounded boxes */
+            font-weight: bold; 
+            cursor: pointer; 
+            font-size: 13px;
+            transition: 0.3s;
+            text-transform: uppercase;
+            box-shadow: 0 0 10px rgba(0, 242, 255, 0.2);
+        }
+
+        .btn:hover { background: var(--cyan); color: #000; box-shadow: 0 0 20px var(--cyan); }
+        
+        input[type="number"] { 
+            background: rgba(255,255,255,0.05); 
+            border: 1px solid rgba(255,255,255,0.2); 
+            color: #fff; 
+            padding: 10px; 
+            width: 120px; 
+            border-radius: 10px; 
+            text-align: center;
+            outline: none;
+        }
+
         #file-input { display: none; }
 
         /* REVEAL AREA */
-        #container { position: relative; flex-grow: 1; width: 100vw; overflow: hidden; display: flex; justify-content: center; align-items: center; background: #050505; }
-        #legend { position: absolute; max-width: 100%; max-height: 100%; object-fit: contain; z-index: 1; display: none; }
+        #container { position: relative; flex-grow: 1; width: 100vw; display: flex; justify-content: center; align-items: center; }
+        #legend { position: absolute; max-width: 95%; max-height: 95%; object-fit: contain; z-index: 1; filter: contrast(1.1); }
         
-        /* GRID SYSTEM (25,000 Boxes) */
+        /* GRID */
         #grid { 
             position: absolute; width: 100%; height: 100%; z-index: 2;
             display: grid; 
             grid-template-columns: repeat(160, 1fr); 
             grid-template-rows: repeat(156, 1fr); 
         }
-        .box { background: #000; border: 0.1px solid #111; transition: opacity 0.4s ease; }
-        .revealed { opacity: 0; pointer-events: none; }
+        .box { background: #000; border: 0.1px solid #111; transition: opacity 0.5s ease; }
         
-        /* CINEMATIC FLASH */
-        .flash { animation: blink 0.2s 2; }
-        @keyframes blink { 0% { background: #fff; } 100% { background: transparent; } }
+        /* GLOW POP ANIMATION */
+        .revealed { 
+            opacity: 0; 
+            pointer-events: none; 
+            animation: glowPop 0.6s ease-out; 
+        }
+
+        @keyframes glowPop {
+            0% { background: var(--cyan); opacity: 1; box-shadow: 0 0 15px var(--cyan); }
+            50% { background: var(--purple); opacity: 0.8; box-shadow: 0 0 30px var(--purple); }
+            100% { background: transparent; opacity: 0; }
+        }
     </style>
 </head>
 <body>
@@ -39,9 +86,9 @@
         <label class="btn" for="file-input">Upload Legend</label>
         <input type="file" id="file-input" accept="image/*">
         
-        <input type="number" id="reveal-num" placeholder="Followers">
-        <button class="btn" onclick="executeReveal()">Execute</button>
-        <button class="btn" onclick="resetGrid()" style="background:#f00; color:#fff;">Reset</button>
+        <input type="number" id="reveal-num" placeholder="00000">
+        <button class="btn" onclick="executeReveal()">Execute Reveal</button>
+        <button class="btn" onclick="resetGrid()" style="border-color:#ff0055; color:#ff0055;">Reset</button>
     </div>
 
     <div id="container">
@@ -54,9 +101,8 @@
         const img = document.getElementById('legend');
         const fileInput = document.getElementById('file-input');
         const boxes = [];
-        const totalBoxes = 24960; // 160x156
+        const totalBoxes = 24960;
 
-        // 1. Initialize Grid
         function initGrid() {
             grid.innerHTML = '';
             boxes.length = 0;
@@ -66,45 +112,37 @@
                 grid.appendChild(b);
                 boxes.push(b);
             }
-            // Shuffle for random reveal
             for (let i = boxes.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [boxes[i], boxes[j]] = [boxes[j], boxes[i]];
             }
         }
 
-        // 2. Handle Image Upload
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     img.src = event.target.result;
-                    img.style.display = 'block';
                     resetGrid();
                 }
                 reader.readAsDataURL(file);
             }
         });
 
-        // 3. Reveal Logic
         function executeReveal() {
             const numToReveal = parseInt(document.getElementById('reveal-num').value);
             if (isNaN(numToReveal)) return;
-
             let count = 0;
             for (let i = 0; i < boxes.length && count < numToReveal; i++) {
                 if (!boxes[i].classList.contains('revealed')) {
-                    boxes[i].classList.add('revealed', 'flash');
+                    boxes[i].classList.add('revealed');
                     count++;
                 }
             }
         }
 
-        function resetGrid() {
-            initGrid();
-        }
-
+        function resetGrid() { initGrid(); }
         initGrid();
     </script>
 </body>
