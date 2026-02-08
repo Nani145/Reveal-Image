@@ -3,46 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LEGEND REVEAL | PRO ELITE</title>
+    <title>LEGEND REVEAL | NEON PRO</title>
     <style>
         :root { --accent: #00f2ff; --bg: #000000; }
         body { background: var(--bg); color: #fff; font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
         
         #ui { 
-            background: rgba(5, 5, 5, 0.98); padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); 
+            background: rgba(5, 5, 5, 0.95); padding: 15px; border-bottom: 1px solid var(--accent); 
             z-index: 100; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center;
             backdrop-filter: blur(20px); position: relative;
         }
 
         #fs-btn {
             position: absolute; top: 12px; right: 15px;
-            background: transparent; color: #fff; border: 1px solid #444;
+            background: transparent; color: var(--accent); border: 1px solid var(--accent);
             padding: 6px 12px; border-radius: 4px; font-size: 10px; font-weight: 800;
             cursor: pointer; text-transform: uppercase; transition: 0.2s;
         }
 
         .btn { 
-            background: #fff; color: #000; border: none; 
-            padding: 10px 24px; border-radius: 4px; font-weight: 800; cursor: pointer; font-size: 11px;
+            background: rgba(0, 242, 255, 0.1); color: var(--accent); border: 1px solid var(--accent); 
+            padding: 10px 24px; border-radius: 50px; font-weight: 800; cursor: pointer; font-size: 11px;
             transition: 0.3s; text-transform: uppercase; letter-spacing: 1px;
+            box-shadow: 0 0 10px rgba(0, 242, 255, 0.2);
         }
-        .btn:hover { background: var(--accent); transform: translateY(-1px); }
+        .btn:hover { background: var(--accent); color: #000; box-shadow: 0 0 20px var(--accent); }
         
         input[type="number"] { 
             background: #111; border: 1px solid #333; color: #fff; 
-            padding: 10px; width: 140px; border-radius: 4px; text-align: center; font-size: 15px; outline: none;
+            padding: 10px; width: 140px; border-radius: 10px; text-align: center; font-size: 15px; outline: none;
         }
 
         #container { position: relative; flex-grow: 1; width: 100vw; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; }
         #legend { position: absolute; max-width: 100%; max-height: 100%; object-fit: contain; z-index: 1; }
+        
         canvas { position: absolute; z-index: 2; pointer-events: none; }
-        #fxCanvas { z-index: 3; mix-blend-mode: screen; }
+        #fxCanvas { z-index: 3; }
 
-        /* Subtle scanline for texture */
+        /* CRT Overlay */
         #container::after {
             content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.1) 50%);
-            z-index: 10; pointer-events: none; background-size: 100% 2px;
+            background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.15) 50%);
+            z-index: 10; pointer-events: none; background-size: 100% 3px;
         }
     </style>
 </head>
@@ -66,7 +68,7 @@
 
     <script>
         const canvas = document.getElementById('revealCanvas');
-        const ctx = canvas.getContext('2d', { alpha: true });
+        const ctx = canvas.getContext('2d');
         const fxCanvas = document.getElementById('fxCanvas');
         const fxCtx = fxCanvas.getContext('2d');
         const img = document.getElementById('legend');
@@ -80,7 +82,6 @@
 
         function setupCanvas() {
             if (!img.complete || img.naturalWidth === 0) return;
-            
             const rect = img.getBoundingClientRect();
             const dpr = window.devicePixelRatio || 1;
             
@@ -96,7 +97,6 @@
             
             blockW = rect.width / cols;
             blockH = rect.height / rows;
-            
             renderMask(rect.width, rect.height);
         }
 
@@ -104,12 +104,10 @@
             ctx.globalCompositeOperation = 'source-over';
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, w, h);
-            
-            // Re-apply reveal if progress exists
             if (totalRevealed > 0) {
                 ctx.globalCompositeOperation = 'destination-out';
                 for (let i = 0; i < totalRevealed; i++) {
-                    if(blocks[i]) ctx.fillRect(blocks[i].x - 0.5, blocks[i].y - 0.5, blockW + 1.2, blockH + 1.2);
+                    ctx.fillRect(blocks[i].x - 0.5, blocks[i].y - 0.5, blockW + 1.2, blockH + 1.2);
                 }
             }
         }
@@ -119,7 +117,6 @@
             const rect = img.getBoundingClientRect();
             let bW = rect.width / cols;
             let bH = rect.height / rows;
-
             for (let r = 0; r < rows; r++) {
                 for (let c = 0; c < cols; c++) {
                     blocks.push({ x: c * bW, y: r * bH });
@@ -137,11 +134,7 @@
                 const reader = new FileReader();
                 reader.onload = (ev) => {
                     img.src = ev.target.result;
-                    img.onload = () => {
-                        totalRevealed = 0;
-                        generateBlocks();
-                        setupCanvas();
-                    };
+                    img.onload = () => { totalRevealed = 0; generateBlocks(); setupCanvas(); };
                 };
                 reader.readAsDataURL(file);
             }
@@ -152,33 +145,36 @@
             const target = parseInt(document.getElementById('reveal-num').value);
             const finalTarget = Math.min(target, blocks.length);
             const toReveal = finalTarget - totalRevealed;
-
             if (toReveal <= 0) return;
 
             isAnimating = true;
             let currentIdx = 0;
             const revealList = blocks.slice(totalRevealed, finalTarget);
-            const batch = Math.ceil(toReveal / 50); // Speed controller
+            const batch = Math.ceil(toReveal / 40); 
 
             function animate() {
                 const end = Math.min(currentIdx + batch, revealList.length);
                 
+                // Set Glow Style
+                fxCtx.shadowBlur = 15;
+                fxCtx.shadowColor = '#00f2ff';
+                fxCtx.fillStyle = '#00f2ff';
+
                 ctx.globalCompositeOperation = 'destination-out';
                 for (let i = currentIdx; i < end; i++) {
                     const b = revealList[i];
-                    // Over-filling slightly (+1.2) to ensure NO black lines remain
                     ctx.fillRect(b.x - 0.5, b.y - 0.5, blockW + 1.2, blockH + 1.2);
                     
-                    // Pro Silver/White Shimmer
-                    fxCtx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.8})`;
+                    // Draw neon blocks
                     fxCtx.fillRect(b.x, b.y, blockW, blockH);
                 }
 
                 currentIdx = end;
                 
-                // Fade out the FX layer
+                // Fade out glow layer
+                fxCtx.shadowBlur = 0; // Don't blur the erase operation
                 fxCtx.globalCompositeOperation = 'destination-out';
-                fxCtx.fillStyle = 'rgba(0,0,0,0.2)';
+                fxCtx.fillStyle = 'rgba(0,0,0,0.15)';
                 fxCtx.fillRect(0, 0, canvas.width, canvas.height);
                 fxCtx.globalCompositeOperation = 'source-over';
 
@@ -187,7 +183,7 @@
                 } else {
                     totalRevealed = finalTarget;
                     isAnimating = false;
-                    // FORCE FINAL RENDER (Fixes the "missing blocks" bug)
+                    // Ensure 100% completion
                     finishReveal();
                 }
             }
@@ -195,13 +191,11 @@
         }
 
         function finishReveal() {
-            // One last pass to ensure the canvas matches totalRevealed
-            const rect = img.getBoundingClientRect();
             ctx.globalCompositeOperation = 'destination-out';
             for (let i = 0; i < totalRevealed; i++) {
                 ctx.fillRect(blocks[i].x - 0.5, blocks[i].y - 0.5, blockW + 1.2, blockH + 1.2);
             }
-            fxCtx.clearRect(0,0, canvas.width, canvas.height);
+            setTimeout(() => fxCtx.clearRect(0,0, canvas.width, canvas.height), 200);
         }
 
         function resetSystem() {
