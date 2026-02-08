@@ -3,49 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LEGEND REVEAL | ULTIMATE</title>
+    <title>LEGEND REVEAL | PRO ELITE</title>
     <style>
-        :root { --cyan: #00f2ff; --pink: #ff0055; --bg: #000000; }
+        :root { --accent: #00f2ff; --bg: #000000; }
         body { background: var(--bg); color: #fff; font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
         
         #ui { 
-            background: rgba(5, 5, 5, 0.95); padding: 15px; border-bottom: 1px solid var(--cyan); 
+            background: rgba(5, 5, 5, 0.98); padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); 
             z-index: 100; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center;
             backdrop-filter: blur(20px); position: relative;
         }
 
         #fs-btn {
             position: absolute; top: 12px; right: 15px;
-            background: transparent; color: var(--cyan); border: 1px solid var(--cyan);
+            background: transparent; color: #fff; border: 1px solid #444;
             padding: 6px 12px; border-radius: 4px; font-size: 10px; font-weight: 800;
             cursor: pointer; text-transform: uppercase; transition: 0.2s;
         }
-        #fs-btn:hover { background: var(--cyan); color: #000; }
 
         .btn { 
-            background: rgba(255, 255, 255, 0.03); color: var(--cyan); border: 1px solid var(--cyan); 
-            padding: 10px 20px; border-radius: 50px; font-weight: 700; cursor: pointer; font-size: 11px;
+            background: #fff; color: #000; border: none; 
+            padding: 10px 24px; border-radius: 4px; font-weight: 800; cursor: pointer; font-size: 11px;
             transition: 0.3s; text-transform: uppercase; letter-spacing: 1px;
         }
-        .btn:hover { background: var(--cyan); color: #000; box-shadow: 0 0 15px var(--cyan); }
+        .btn:hover { background: var(--accent); transform: translateY(-1px); }
         
         input[type="number"] { 
-            background: #111; border: 1px solid #333; color: var(--cyan); 
-            padding: 10px; width: 130px; border-radius: 10px; text-align: center; font-size: 15px; outline: none;
+            background: #111; border: 1px solid #333; color: #fff; 
+            padding: 10px; width: 140px; border-radius: 4px; text-align: center; font-size: 15px; outline: none;
         }
-        input[type="number"]:focus { border-color: var(--cyan); }
 
         #container { position: relative; flex-grow: 1; width: 100vw; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; }
-        
         #legend { position: absolute; max-width: 100%; max-height: 100%; object-fit: contain; z-index: 1; }
         canvas { position: absolute; z-index: 2; pointer-events: none; }
-        #fxCanvas { z-index: 3; }
+        #fxCanvas { z-index: 3; mix-blend-mode: screen; }
 
-        /* CRT Scanline effect */
+        /* Subtle scanline for texture */
         #container::after {
             content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.1) 50%);
-            z-index: 10; pointer-events: none; background-size: 100% 3px;
+            z-index: 10; pointer-events: none; background-size: 100% 2px;
         }
     </style>
 </head>
@@ -53,12 +50,12 @@
 
     <div id="ui">
         <button id="fs-btn" onclick="toggleFS()">Fullscreen</button>
-        <label class="btn" for="file-input">Load Identity</label>
+        <label class="btn" for="file-input">Load Image</label>
         <input type="file" id="file-input" accept="image/*" style="display:none">
         
-        <input type="number" id="reveal-num" placeholder="FOLLOWER COUNT">
-        <button class="btn" onclick="executeReveal()">Execute</button>
-        <button class="btn" onclick="resetSystem()" style="border-color:var(--pink); color:var(--pink);">Reset System</button>
+        <input type="number" id="reveal-num" placeholder="00000">
+        <button class="btn" onclick="executeReveal()">Execute Reveal</button>
+        <button class="btn" onclick="resetSystem()" style="background: transparent; border: 1px solid #444; color: #fff;">Reset</button>
     </div>
 
     <div id="container">
@@ -85,7 +82,6 @@
             if (!img.complete || img.naturalWidth === 0) return;
             
             const rect = img.getBoundingClientRect();
-            // High DPI Scaling
             const dpr = window.devicePixelRatio || 1;
             
             [canvas, fxCanvas].forEach(c => {
@@ -95,29 +91,30 @@
                 c.style.height = `${rect.height}px`;
             });
 
-            ctx.scale(dpr, dpr);
-            fxCtx.scale(dpr, dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            fxCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
             
             blockW = rect.width / cols;
             blockH = rect.height / rows;
             
-            renderCurrentState(rect.width, rect.height);
+            renderMask(rect.width, rect.height);
         }
 
-        function renderCurrentState(w, h) {
+        function renderMask(w, h) {
             ctx.globalCompositeOperation = 'source-over';
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, w, h);
             
+            // Re-apply reveal if progress exists
             if (totalRevealed > 0) {
                 ctx.globalCompositeOperation = 'destination-out';
                 for (let i = 0; i < totalRevealed; i++) {
-                    if(blocks[i]) ctx.fillRect(blocks[i].x, blocks[i].y, blockW + 0.8, blockH + 0.8);
+                    if(blocks[i]) ctx.fillRect(blocks[i].x - 0.5, blocks[i].y - 0.5, blockW + 1.2, blockH + 1.2);
                 }
             }
         }
 
-        function generateBlockList() {
+        function generateBlocks() {
             blocks = [];
             const rect = img.getBoundingClientRect();
             let bW = rect.width / cols;
@@ -128,7 +125,6 @@
                     blocks.push({ x: c * bW, y: r * bH });
                 }
             }
-            // Shuffle
             for (let i = blocks.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [blocks[i], blocks[j]] = [blocks[j], blocks[i]];
@@ -139,11 +135,11 @@
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = (event) => {
-                    img.src = event.target.result;
+                reader.onload = (ev) => {
+                    img.src = ev.target.result;
                     img.onload = () => {
                         totalRevealed = 0;
-                        generateBlockList();
+                        generateBlocks();
                         setupCanvas();
                     };
                 };
@@ -153,47 +149,59 @@
 
         function executeReveal() {
             if (isAnimating) return;
-            const targetInput = parseInt(document.getElementById('reveal-num').value);
-            const maxBlocks = blocks.length;
-            const finalTarget = Math.min(targetInput, maxBlocks);
-            
-            const numToRevealNow = finalTarget - totalRevealed;
-            if (numToRevealNow <= 0) return; 
+            const target = parseInt(document.getElementById('reveal-num').value);
+            const finalTarget = Math.min(target, blocks.length);
+            const toReveal = finalTarget - totalRevealed;
+
+            if (toReveal <= 0) return;
 
             isAnimating = true;
-            const toErase = blocks.slice(totalRevealed, finalTarget);
-            let index = 0;
-            const batchSize = Math.ceil(numToRevealNow / 45); 
+            let currentIdx = 0;
+            const revealList = blocks.slice(totalRevealed, finalTarget);
+            const batch = Math.ceil(toReveal / 50); // Speed controller
 
             function animate() {
-                const end = Math.min(index + batchSize, toErase.length);
+                const end = Math.min(currentIdx + batch, revealList.length);
                 
                 ctx.globalCompositeOperation = 'destination-out';
-                for (let i = index; i < end; i++) {
-                    const b = toErase[i];
-                    ctx.fillRect(b.x, b.y, blockW + 0.9, blockH + 0.9);
+                for (let i = currentIdx; i < end; i++) {
+                    const b = revealList[i];
+                    // Over-filling slightly (+1.2) to ensure NO black lines remain
+                    ctx.fillRect(b.x - 0.5, b.y - 0.5, blockW + 1.2, blockH + 1.2);
                     
-                    fxCtx.fillStyle = Math.random() > 0.5 ? '#00f2ff' : '#ff0055';
+                    // Pro Silver/White Shimmer
+                    fxCtx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.8})`;
                     fxCtx.fillRect(b.x, b.y, blockW, blockH);
                 }
 
-                index = end;
+                currentIdx = end;
                 
-                // Sharp flash trail
+                // Fade out the FX layer
                 fxCtx.globalCompositeOperation = 'destination-out';
                 fxCtx.fillStyle = 'rgba(0,0,0,0.2)';
                 fxCtx.fillRect(0, 0, canvas.width, canvas.height);
                 fxCtx.globalCompositeOperation = 'source-over';
 
-                if (index < toErase.length) {
+                if (currentIdx < revealList.length) {
                     requestAnimationFrame(animate);
                 } else {
-                    totalRevealed = finalTarget; 
+                    totalRevealed = finalTarget;
                     isAnimating = false;
-                    fxCtx.clearRect(0,0, canvas.width, canvas.height);
+                    // FORCE FINAL RENDER (Fixes the "missing blocks" bug)
+                    finishReveal();
                 }
             }
             animate();
+        }
+
+        function finishReveal() {
+            // One last pass to ensure the canvas matches totalRevealed
+            const rect = img.getBoundingClientRect();
+            ctx.globalCompositeOperation = 'destination-out';
+            for (let i = 0; i < totalRevealed; i++) {
+                ctx.fillRect(blocks[i].x - 0.5, blocks[i].y - 0.5, blockW + 1.2, blockH + 1.2);
+            }
+            fxCtx.clearRect(0,0, canvas.width, canvas.height);
         }
 
         function resetSystem() {
