@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LEGEND REVEAL | MASTERPIECE</title>
+    <title>LEGEND REVEAL | FINAL PRO</title>
     <style>
         :root { --accent: #ffffff; --bg: #000000; --reset-red: #ff3b3b; }
         body { background: var(--bg); color: #fff; font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
@@ -38,7 +38,6 @@
             cursor: pointer; transition: 0.3s;
             box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
         }
-        #fs-btn:hover { box-shadow: 0 0 20px rgba(255, 255, 255, 0.5); }
         #fs-btn svg { width: 20px; height: 20px; fill: currentColor; }
         
         input[type="number"] { 
@@ -64,10 +63,8 @@
         <button id="fs-btn" onclick="toggleFS()">
             <svg id="fs-icon" viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
         </button>
-        
         <label class="btn" for="file-input" style="display:inline-block; line-height:11px;">Load Identity</label>
         <input type="file" id="file-input" accept="image/*" style="display:none">
-        
         <input type="number" id="reveal-num" placeholder="00000">
         <button class="btn" onclick="executeReveal()">Execute</button>
         <button class="btn-reset" onclick="resetSystem()">Reset System</button>
@@ -111,18 +108,19 @@
             
             blockW = rect.width / cols;
             blockH = rect.height / rows;
-            renderMask(rect.width, rect.height);
+            renderMask();
         }
 
-        function renderMask(w, h) {
+        function renderMask() {
+            const rect = img.getBoundingClientRect();
             ctx.globalCompositeOperation = 'source-over';
             ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, w, h);
+            ctx.fillRect(0, 0, rect.width, rect.height);
+            
             if (totalRevealed > 0) {
                 ctx.globalCompositeOperation = 'destination-out';
                 for (let i = 0; i < totalRevealed; i++) {
-                    // Aggressive 2.0px overlap for Fullscreen stability
-                    ctx.fillRect(blocks[i].x - 1, blocks[i].y - 1, blockW + 2.0, blockH + 2.0);
+                    ctx.fillRect(blocks[i].x - 1, blocks[i].y - 1, blockW + 2, blockH + 2);
                 }
             }
         }
@@ -130,11 +128,9 @@
         function generateBlocks() {
             blocks = [];
             const rect = img.getBoundingClientRect();
-            let bW = rect.width / cols;
-            let bH = rect.height / rows;
             for (let r = 0; r < rows; r++) {
                 for (let c = 0; c < cols; c++) {
-                    blocks.push({ x: c * bW, y: r * bH });
+                    blocks.push({ x: c * (rect.width / cols), y: r * (rect.height / rows) });
                 }
             }
             for (let i = blocks.length - 1; i > 0; i--) {
@@ -159,63 +155,70 @@
             if (isAnimating) return;
             const target = parseInt(document.getElementById('reveal-num').value);
             const finalTarget = Math.min(target, blocks.length);
-            const toReveal = finalTarget - totalRevealed;
-            if (toReveal <= 0) return;
+            const toRevealCount = finalTarget - totalRevealed;
+            if (toRevealCount <= 0) return;
 
             isAnimating = true;
-            let currentIdx = 0;
+            let localIdx = 0;
             const revealList = blocks.slice(totalRevealed, finalTarget);
-            const batch = Math.ceil(toReveal / 45); 
+            const batchSize = Math.ceil(toRevealCount / 45); 
 
             function animate() {
-                const end = Math.min(currentIdx + batch, revealList.length);
+                const end = Math.min(localIdx + batchSize, revealList.length);
+                
                 fxCtx.shadowBlur = 20;
                 fxCtx.shadowColor = '#ffffff';
                 fxCtx.fillStyle = '#ffffff';
 
                 ctx.globalCompositeOperation = 'destination-out';
-                for (let i = currentIdx; i < end; i++) {
+                for (let i = localIdx; i < end; i++) {
                     const b = revealList[i];
-                    ctx.fillRect(b.x - 1, b.y - 1, blockW + 2.0, blockH + 2.0);
+                    ctx.fillRect(b.x - 1, b.y - 1, blockW + 2.1, blockH + 2.1);
                     fxCtx.fillRect(b.x, b.y, blockW, blockH);
                 }
 
-                currentIdx = end;
+                localIdx = end;
                 
-                // Continuous fade
                 fxCtx.shadowBlur = 0;
                 fxCtx.globalCompositeOperation = 'destination-out';
-                fxCtx.fillStyle = 'rgba(0,0,0,0.18)'; 
+                fxCtx.fillStyle = 'rgba(0,0,0,0.2)'; 
                 fxCtx.fillRect(0, 0, canvas.width, canvas.height);
                 fxCtx.globalCompositeOperation = 'source-over';
 
-                if (currentIdx < revealList.length) {
+                if (localIdx < revealList.length) {
                     requestAnimationFrame(animate);
                 } else {
+                    // CRITICAL FIX: Update total and force clean before fade starts
                     totalRevealed = finalTarget;
-                    // Final Smooth Fade Out
-                    finalFade();
+                    forceCleanMask(); 
+                    startFinalGlowFade();
                 }
             }
             animate();
         }
 
-        function finalFade() {
-            let fadeFrames = 0;
-            function fadeOut() {
+        function forceCleanMask() {
+            // This ensures 100% that the black mask is gone for the requested blocks
+            ctx.globalCompositeOperation = 'destination-out';
+            for (let i = 0; i < totalRevealed; i++) {
+                ctx.fillRect(blocks[i].x - 1, blocks[i].y - 1, blockW + 2.1, blockH + 2.1);
+            }
+        }
+
+        function startFinalGlowFade() {
+            let frames = 0;
+            function fade() {
                 fxCtx.globalCompositeOperation = 'destination-out';
-                fxCtx.fillStyle = 'rgba(0,0,0,0.1)';
+                fxCtx.fillStyle = 'rgba(0,0,0,0.15)';
                 fxCtx.fillRect(0, 0, canvas.width, canvas.height);
-                fadeFrames++;
-                
-                if (fadeFrames < 20) {
-                    requestAnimationFrame(fadeOut);
-                } else {
+                frames++;
+                if (frames < 25) requestAnimationFrame(fade);
+                else {
                     isAnimating = false;
                     fxCtx.clearRect(0,0, canvas.width, canvas.height);
                 }
             }
-            fadeOut();
+            fade();
         }
 
         function resetSystem() {
@@ -231,11 +234,11 @@
         }
 
         document.addEventListener('fullscreenchange', () => {
-            if (document.fullscreenElement) {
-                fsBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>`;
-            } else {
-                fsBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>`;
-            }
+            const isFS = !!document.fullscreenElement;
+            fsBtn.innerHTML = isFS ? 
+                `<svg viewBox="0 0 24 24"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>` :
+                `<svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>`;
+            setTimeout(setupCanvas, 150);
         });
 
         window.addEventListener('resize', () => { setTimeout(setupCanvas, 100); });
