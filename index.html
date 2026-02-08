@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LEGEND REVEAL | WHITE GLOW EDITION</title>
+    <title>LEGEND REVEAL | ELITE UX</title>
     <style>
         :root { --accent: #ffffff; --bg: #000000; --reset-red: #ff3b3b; }
         body { background: var(--bg); color: #fff; font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
@@ -14,41 +14,46 @@
             backdrop-filter: blur(20px); position: relative;
         }
 
-        #fs-btn {
-            position: absolute; top: 12px; right: 15px;
-            background: transparent; color: #888; border: 1px solid #333;
-            padding: 6px 12px; border-radius: 4px; font-size: 10px; font-weight: 800;
-            cursor: pointer; text-transform: uppercase; transition: 0.2s;
-        }
-        #fs-btn:hover { border-color: #fff; color: #fff; }
-
+        /* GLOWING CYLINDRICAL BUTTONS */
         .btn { 
             background: #ffffff; color: #000; border: none; 
-            padding: 10px 24px; border-radius: 4px; font-weight: 800; cursor: pointer; font-size: 11px;
+            padding: 12px 30px; border-radius: 100px; /* Cylindrical */
+            font-weight: 800; cursor: pointer; font-size: 11px;
             transition: 0.3s; text-transform: uppercase; letter-spacing: 1px;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5); /* Glowing */
         }
-        .btn:hover { background: #cccccc; transform: translateY(-1px); }
+        .btn:hover { background: #fff; box-shadow: 0 0 25px rgba(255, 255, 255, 0.8); transform: translateY(-1px); }
 
         .btn-reset {
             background: transparent; color: var(--reset-red); border: 1px solid var(--reset-red);
-            padding: 10px 24px; border-radius: 4px; font-weight: 800; cursor: pointer; font-size: 11px;
+            padding: 12px 30px; border-radius: 100px; font-weight: 800; cursor: pointer; font-size: 11px;
             text-transform: uppercase; transition: 0.3s;
         }
-        .btn-reset:hover { background: var(--reset-red); color: #fff; }
+        .btn-reset:hover { background: var(--reset-red); color: #fff; box-shadow: 0 0 15px var(--reset-red); }
+
+        /* EXIT / FULLSCREEN BUTTON */
+        #fs-btn {
+            position: absolute; top: 15px; right: 20px;
+            background: transparent; color: #fff; border: 1px solid #fff;
+            width: 40px; height: 40px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.3s;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+        #fs-btn:hover { box-shadow: 0 0 20px rgba(255, 255, 255, 0.6); }
+        #fs-btn svg { width: 20px; height: 20px; fill: currentColor; }
         
         input[type="number"] { 
             background: #111; border: 1px solid #333; color: #fff; 
-            padding: 10px; width: 140px; border-radius: 4px; text-align: center; font-size: 15px; outline: none;
+            padding: 12px; width: 140px; border-radius: 100px; text-align: center; font-size: 15px; outline: none;
         }
-        input[type="number"]:focus { border-color: #666; }
 
         #container { position: relative; flex-grow: 1; width: 100vw; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; }
         #legend { position: absolute; max-width: 100%; max-height: 100%; object-fit: contain; z-index: 1; }
-        
         canvas { position: absolute; z-index: 2; pointer-events: none; }
         #fxCanvas { z-index: 3; mix-blend-mode: screen; }
 
-        /* Subtle scanline texture */
+        /* Scanline Overlay */
         #container::after {
             content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.1) 50%);
@@ -59,12 +64,15 @@
 <body>
 
     <div id="ui">
-        <button id="fs-btn" onclick="toggleFS()">Fullscreen</button>
-        <label class="btn" for="file-input">Load Image</label>
+        <button id="fs-btn" onclick="toggleFS()">
+            <svg id="fs-icon" viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+        </button>
+        
+        <label class="btn" for="file-input" style="display:inline-block; line-height:11px;">Load Identity</label>
         <input type="file" id="file-input" accept="image/*" style="display:none">
         
         <input type="number" id="reveal-num" placeholder="00000">
-        <button class="btn" onclick="executeReveal()">Execute Reveal</button>
+        <button class="btn" onclick="executeReveal()">Execute</button>
         <button class="btn-reset" onclick="resetSystem()">Reset System</button>
     </div>
 
@@ -80,6 +88,7 @@
         const fxCanvas = document.getElementById('fxCanvas');
         const fxCtx = fxCanvas.getContext('2d');
         const img = document.getElementById('legend');
+        const fsIcon = document.getElementById('fs-btn');
         
         let blocks = [];
         let totalRevealed = 0; 
@@ -112,11 +121,9 @@
             ctx.globalCompositeOperation = 'source-over';
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, w, h);
-            
             if (totalRevealed > 0) {
                 ctx.globalCompositeOperation = 'destination-out';
                 for (let i = 0; i < totalRevealed; i++) {
-                    // Over-erase slightly to prevent grid lines
                     ctx.fillRect(blocks[i].x - 0.7, blocks[i].y - 0.7, blockW + 1.5, blockH + 1.5);
                 }
             }
@@ -164,8 +171,6 @@
 
             function animate() {
                 const end = Math.min(currentIdx + batch, revealList.length);
-                
-                // Pure White Glow Configuration
                 fxCtx.shadowBlur = 20;
                 fxCtx.shadowColor = '#ffffff';
                 fxCtx.fillStyle = '#ffffff';
@@ -173,16 +178,11 @@
                 ctx.globalCompositeOperation = 'destination-out';
                 for (let i = currentIdx; i < end; i++) {
                     const b = revealList[i];
-                    // HEAVY OVERLAP (+1.5) to kill black lines in fullscreen
-                    ctx.fillRect(b.x - 0.7, b.y - 0.7, blockW + 1.5, blockH + 1.5);
-                    
-                    // FX Sparkle
+                    ctx.fillRect(b.x - 0.8, b.y - 0.8, blockW + 1.6, blockH + 1.6);
                     fxCtx.fillRect(b.x, b.y, blockW, blockH);
                 }
 
                 currentIdx = end;
-                
-                // Fade out glow
                 fxCtx.shadowBlur = 0;
                 fxCtx.globalCompositeOperation = 'destination-out';
                 fxCtx.fillStyle = 'rgba(0,0,0,0.25)';
@@ -201,12 +201,10 @@
         }
 
         function finishReveal() {
-            // Final pass ensures absolutely no pixels missed
             ctx.globalCompositeOperation = 'destination-out';
             for (let i = 0; i < totalRevealed; i++) {
-                ctx.fillRect(blocks[i].x - 0.7, blocks[i].y - 0.7, blockW + 1.5, blockH + 1.5);
+                ctx.fillRect(blocks[i].x - 0.8, blocks[i].y - 0.8, blockW + 1.6, blockH + 1.6);
             }
-            // Rapid fade clear for FX
             setTimeout(() => fxCtx.clearRect(0,0, canvas.width, canvas.height), 150);
         }
 
@@ -218,12 +216,26 @@
         }
 
         function toggleFS() {
-            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-            else document.exitFullscreen();
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
         }
 
+        // SWAP ICON ON FULLSCREEN CHANGE
+        document.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement) {
+                // Change to Exit Icon
+                fsIcon.innerHTML = `<svg viewBox="0 0 24 24"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>`;
+            } else {
+                // Change back to Fullscreen Icon
+                fsIcon.innerHTML = `<svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>`;
+            }
+        });
+
         window.addEventListener('resize', () => {
-            setTimeout(setupCanvas, 100); // Small delay for browser resize finish
+            setTimeout(setupCanvas, 100);
         });
     </script>
 </body>
