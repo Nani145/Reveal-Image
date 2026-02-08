@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LEGEND REVEAL | ELITE UX</title>
+    <title>LEGEND REVEAL | MASTERPIECE</title>
     <style>
         :root { --accent: #ffffff; --bg: #000000; --reset-red: #ff3b3b; }
         body { background: var(--bg); color: #fff; font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
@@ -14,15 +14,14 @@
             backdrop-filter: blur(20px); position: relative;
         }
 
-        /* GLOWING CYLINDRICAL BUTTONS */
         .btn { 
             background: #ffffff; color: #000; border: none; 
-            padding: 12px 30px; border-radius: 100px; /* Cylindrical */
+            padding: 12px 30px; border-radius: 100px;
             font-weight: 800; cursor: pointer; font-size: 11px;
             transition: 0.3s; text-transform: uppercase; letter-spacing: 1px;
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5); /* Glowing */
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
         }
-        .btn:hover { background: #fff; box-shadow: 0 0 25px rgba(255, 255, 255, 0.8); transform: translateY(-1px); }
+        .btn:hover { box-shadow: 0 0 25px rgba(255, 255, 255, 0.7); transform: translateY(-1px); }
 
         .btn-reset {
             background: transparent; color: var(--reset-red); border: 1px solid var(--reset-red);
@@ -31,16 +30,15 @@
         }
         .btn-reset:hover { background: var(--reset-red); color: #fff; box-shadow: 0 0 15px var(--reset-red); }
 
-        /* EXIT / FULLSCREEN BUTTON */
         #fs-btn {
             position: absolute; top: 15px; right: 20px;
             background: transparent; color: #fff; border: 1px solid #fff;
             width: 40px; height: 40px; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; transition: 0.3s;
-            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
         }
-        #fs-btn:hover { box-shadow: 0 0 20px rgba(255, 255, 255, 0.6); }
+        #fs-btn:hover { box-shadow: 0 0 20px rgba(255, 255, 255, 0.5); }
         #fs-btn svg { width: 20px; height: 20px; fill: currentColor; }
         
         input[type="number"] { 
@@ -53,7 +51,6 @@
         canvas { position: absolute; z-index: 2; pointer-events: none; }
         #fxCanvas { z-index: 3; mix-blend-mode: screen; }
 
-        /* Scanline Overlay */
         #container::after {
             content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.1) 50%);
@@ -88,7 +85,7 @@
         const fxCanvas = document.getElementById('fxCanvas');
         const fxCtx = fxCanvas.getContext('2d');
         const img = document.getElementById('legend');
-        const fsIcon = document.getElementById('fs-btn');
+        const fsBtn = document.getElementById('fs-btn');
         
         let blocks = [];
         let totalRevealed = 0; 
@@ -124,7 +121,8 @@
             if (totalRevealed > 0) {
                 ctx.globalCompositeOperation = 'destination-out';
                 for (let i = 0; i < totalRevealed; i++) {
-                    ctx.fillRect(blocks[i].x - 0.7, blocks[i].y - 0.7, blockW + 1.5, blockH + 1.5);
+                    // Aggressive 2.0px overlap for Fullscreen stability
+                    ctx.fillRect(blocks[i].x - 1, blocks[i].y - 1, blockW + 2.0, blockH + 2.0);
                 }
             }
         }
@@ -178,14 +176,16 @@
                 ctx.globalCompositeOperation = 'destination-out';
                 for (let i = currentIdx; i < end; i++) {
                     const b = revealList[i];
-                    ctx.fillRect(b.x - 0.8, b.y - 0.8, blockW + 1.6, blockH + 1.6);
+                    ctx.fillRect(b.x - 1, b.y - 1, blockW + 2.0, blockH + 2.0);
                     fxCtx.fillRect(b.x, b.y, blockW, blockH);
                 }
 
                 currentIdx = end;
+                
+                // Continuous fade
                 fxCtx.shadowBlur = 0;
                 fxCtx.globalCompositeOperation = 'destination-out';
-                fxCtx.fillStyle = 'rgba(0,0,0,0.25)';
+                fxCtx.fillStyle = 'rgba(0,0,0,0.18)'; 
                 fxCtx.fillRect(0, 0, canvas.width, canvas.height);
                 fxCtx.globalCompositeOperation = 'source-over';
 
@@ -193,19 +193,29 @@
                     requestAnimationFrame(animate);
                 } else {
                     totalRevealed = finalTarget;
-                    isAnimating = false;
-                    finishReveal();
+                    // Final Smooth Fade Out
+                    finalFade();
                 }
             }
             animate();
         }
 
-        function finishReveal() {
-            ctx.globalCompositeOperation = 'destination-out';
-            for (let i = 0; i < totalRevealed; i++) {
-                ctx.fillRect(blocks[i].x - 0.8, blocks[i].y - 0.8, blockW + 1.6, blockH + 1.6);
+        function finalFade() {
+            let fadeFrames = 0;
+            function fadeOut() {
+                fxCtx.globalCompositeOperation = 'destination-out';
+                fxCtx.fillStyle = 'rgba(0,0,0,0.1)';
+                fxCtx.fillRect(0, 0, canvas.width, canvas.height);
+                fadeFrames++;
+                
+                if (fadeFrames < 20) {
+                    requestAnimationFrame(fadeOut);
+                } else {
+                    isAnimating = false;
+                    fxCtx.clearRect(0,0, canvas.width, canvas.height);
+                }
             }
-            setTimeout(() => fxCtx.clearRect(0,0, canvas.width, canvas.height), 150);
+            fadeOut();
         }
 
         function resetSystem() {
@@ -216,27 +226,19 @@
         }
 
         function toggleFS() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
-            } else {
-                document.exitFullscreen();
-            }
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else document.exitFullscreen();
         }
 
-        // SWAP ICON ON FULLSCREEN CHANGE
         document.addEventListener('fullscreenchange', () => {
             if (document.fullscreenElement) {
-                // Change to Exit Icon
-                fsIcon.innerHTML = `<svg viewBox="0 0 24 24"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>`;
+                fsBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>`;
             } else {
-                // Change back to Fullscreen Icon
-                fsIcon.innerHTML = `<svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>`;
+                fsBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>`;
             }
         });
 
-        window.addEventListener('resize', () => {
-            setTimeout(setupCanvas, 100);
-        });
+        window.addEventListener('resize', () => { setTimeout(setupCanvas, 100); });
     </script>
 </body>
 </html>
